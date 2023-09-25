@@ -4,43 +4,63 @@ import ROSLIB from "roslib";
 
 function Example() {
   const [message, setMessage] = useState("Nenhuma mensagem recebida ainda!");
+  const [status, setStatus] = useState("Disconected");
 
   const ros = new ROSLIB.Ros({ encoding: "ascii" });
 
   function connect() {
-    ros.connect("http://localhost:8001/ros_tornado_bridge/v1");
+    ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1");
     ros.on("error", function (error) {
-      console.log("Erro:");
+      console.log("Error:");
+      setStatus("Error");
       console.log(error);
     });
 
     ros.on("connection", function () {
       console.log("Connected!");
+      setStatus("Connected");
     });
 
     ros.on("close", function () {
       console.log("Connection closed");
+      setStatus("Connection closed");
     });
   }
 
-  function subscribe() {
-    console.log("Calling subscriber");
-    const listerner = new ROSLIB.Topic({
+  function publish() {
+    console.log("Publishing");
+    var cmdVel = new ROSLIB.Topic({
       ros: ros,
-      name: "random_msg",
-      messageType: "number",
+      name: "/oi", // Change the topic name to where you want to publish
+      messageType: "std_msgs/String",
     });
-    listerner.subscribe((msg) => {
-      console.log(msg);
+
+    var message = new ROSLIB.Message({
+      data: "Teste",
     });
-    console.log("Subscriber finished");
+
+    cmdVel.publish(message);
+  }
+
+  function listener() {
+    console.log("Listener ligado");
+    var listener = new ROSLIB.Topic({
+      ros: ros,
+      name: "/random_msg", // Change the topic name to match the publisher
+      messageType: "std_msgs/Int8",
+    });
+    listener.subscribe(function (message) {
+      console.log("Received message on " + listener.name + ": " + message.data);
+    });
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.text}>{message}</Text>
-      <Button title="Enviar" onPress={subscribe} />
+      <Text style={styles.text}>Status da conexão:{status} </Text>
+      <Button title="listener" onPress={listener} />
       <Button title="Conectar" onPress={connect} />
+      <Button title="Publish" onPress={publish} />
     </View>
   );
 }

@@ -18,7 +18,7 @@ function Turtlesim() {
   }
 
   function connect() {
-    ros.connect("ws://localhost:9090");
+    ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1");
     // won't let the user connect more than once
     ros.on("error", function (error) {
       console.log(error);
@@ -43,7 +43,7 @@ function Turtlesim() {
     }
     const cmdVel = new ROSLIB.Topic({
       ros: ros,
-      name: "pose_topic",
+      name: "turtle1/pose",
       messageType: "geometry_msgs/Pose2D",
     });
 
@@ -57,6 +57,7 @@ function Turtlesim() {
     console.log("msg", data);
     cmdVel.publish(data);
   }
+  connect();
 
   return (
     <View>

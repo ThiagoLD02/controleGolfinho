@@ -21,7 +21,7 @@
       connect() {
         var protocolPrefix =
           window.location.protocol === "https:" ? "wss:" : "ws:";
-        let abspath = protocolPrefix + "//localhost" + ":8001" + this.path;
+        let abspath = protocolPrefix + "//192.168.2.10" + ":8001" + this.path;
 
         let that = this;
 
