@@ -9,7 +9,8 @@ function Example() {
   const ros = new ROSLIB.Ros({ encoding: "ascii" });
 
   function connect() {
-    ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1");
+    ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1"); // tornado
+    // ros.connect("ws://192.168.2.10:9090"); // rosbridge
     ros.on("error", function (error) {
       console.log("Error:");
       setStatus("Error");
@@ -28,26 +29,44 @@ function Example() {
   }
 
   function publish() {
-    console.log("Publishing");
+    console.log("oi");
+    ros.getTopics(
+      (result) => {
+        console.log(result.topics);
+        console.log(result.types);
+      },
+      (error) => {
+        console.log("deu erro", error);
+      }
+    );
+
     var cmdVel = new ROSLIB.Topic({
       ros: ros,
-      name: "/oi", // Change the topic name to where you want to publish
-      messageType: "std_msgs/String",
+      name: "/cmd_vel",
+      messageType: "geometry_msgs/Twist",
     });
 
-    var message = new ROSLIB.Message({
-      data: "Teste",
+    var twist = new ROSLIB.Message({
+      linear: {
+        x: 0.1,
+        y: 0.2,
+        z: 0.3,
+      },
+      angular: {
+        x: -0.1,
+        y: -0.2,
+        z: -0.3,
+      },
     });
-
-    cmdVel.publish(message);
+    cmdVel.publish(twist);
   }
 
   function listener() {
     console.log("Listener ligado");
     var listener = new ROSLIB.Topic({
       ros: ros,
-      name: "/random_msg", // Change the topic name to match the publisher
-      messageType: "std_msgs/Int8",
+      name: "/listener", // Change the topic name to match the publisher
+      messageType: "std_msgs/String",
     });
     listener.subscribe(function (message) {
       console.log("Received message on " + listener.name + ": " + message.data);
