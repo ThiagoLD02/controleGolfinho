@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet, Button } from "react-native";
 import ROSLIB from "roslib";
+import { setRos } from "./rosObject";
 
 export function ConnectServer({ navigation }) {
   const [status, setStatus] = useState("Disconected");
-  const [response, setResponse] = useState("");
   const [rosRef, setRosRef] = useState(null);
 
   const ros = new ROSLIB.Ros({ encoding: "ascii" });
 
   function connect() {
     // ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1"); // tornado
-    ros.connect("ws://192.168.2.10:9090"); // rosbridge
+    ros.connect("ws://192.168.2.5:9090"); // rosbridge, se der erro verifique seu IP
     ros.on("error", function (error) {
       console.log("Error:");
       setStatus("Error");
@@ -22,6 +22,7 @@ export function ConnectServer({ navigation }) {
       console.log("Connected!");
       setStatus("Connected");
       setRosRef(ros);
+      setRos(ros);
     });
 
     ros.on("close", function () {
@@ -30,30 +31,10 @@ export function ConnectServer({ navigation }) {
     });
   }
 
-  function publish() {
-    if (!rosRef.isConnected) console.log("ta nao zz");
-    const publisher = new ROSLIB.Service({
-      ros: rosRef,
-      name: "/add_two_ints",
-      serviceType: "example_interface/srv/AddTwoInts",
-    });
-
-    const msg = new ROSLIB.Message({
-      a: 7,
-      b: 3,
-    });
-
-    publisher.callService(msg, (res) => {
-      console.log(res);
-      setResponse(res.sum);
-    });
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Status da conexão: {status} </Text>
       <Button title="Conectar" onPress={connect} />
-      <Button title="Publicar" onPress={publish} />
       <Button
         title="Iniciar controle"
         disabled={status !== "Connected"}
@@ -61,7 +42,6 @@ export function ConnectServer({ navigation }) {
           navigation.navigate("Control");
         }}
       />
-      <Text style={styles.text}>Resposta: {response} </Text>
     </View>
   );
 }
