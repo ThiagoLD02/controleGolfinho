@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Button } from "react-native";
 import ROSLIB from "roslib";
 import { setRos } from "./rosObject";
+import { getRos } from "./rosObject";
 
 export function ConnectServer({ navigation }) {
   const [status, setStatus] = useState("Disconected");
-  const [rosRef, setRosRef] = useState(null);
 
   const ros = new ROSLIB.Ros({ encoding: "ascii" });
 
@@ -21,7 +21,6 @@ export function ConnectServer({ navigation }) {
     ros.on("connection", function () {
       console.log("Connected!");
       setStatus("Connected");
-      setRosRef(ros);
       setRos(ros);
     });
 
@@ -31,10 +30,20 @@ export function ConnectServer({ navigation }) {
     });
   }
 
+  function disconnect() {
+    const rosref = getRos();
+    rosref.close();
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Status da conexão: {status} </Text>
       <Button title="Conectar" onPress={connect} />
+      <Button
+        title="Desconectar"
+        disabled={status !== "Connected"}
+        onPress={disconnect}
+      />
       <Button
         title="Iniciar controle"
         disabled={status !== "Connected"}
