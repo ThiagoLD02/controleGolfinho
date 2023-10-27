@@ -11,7 +11,7 @@ export function ConnectServer({ navigation }) {
 
   function connect() {
     // ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1"); // tornado
-    ros.connect("ws://192.168.2.5:9090"); // rosbridge, se der erro verifique seu IP
+    ros.connect("ws://192.168.2.7:9090"); // rosbridge, se der erro verifique seu IP
     ros.on("error", function (error) {
       console.log("Error:");
       setStatus("Error");

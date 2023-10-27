@@ -1,86 +1,118 @@
-import { View, StyleSheet, StatusBar, Text } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { View, StyleSheet, StatusBar, Image, Text } from "react-native";
 import ROSLIB from "roslib";
 import { useEffect, useState } from "react";
 import { getRos } from "./rosObject";
-import { ControlButton } from "./components/controlButton";
+import { SliderControl } from "./components/sliderControl";
+import { Buffer } from "buffer";
+import Pedal from "../assets/pedal.png";
 
 export function Control() {
-  const [turtleSimPosition, setTurtleSimPosition] = useState({
-    angular_velocity: 0.0,
-    linear_velocity: 0.0,
-    theta: 0.0,
-    x: 0.0,
-    y: 0.0,
+  const [controlData, setControlData] = useState({
+    linear: {
+      x: 0.0,
+      y: 0.0,
+      z: 0.0,
+    },
+    angular: {
+      x: 0.0,
+      y: 0.0,
+      z: 0.0,
+    },
   });
-  const [intervalState, setIntervalState] = useState(null);
+  const [imageData, setImageData] = useState();
 
-  const ros = getRos();
-  let turtleSimPositionCopy = turtleSimPosition;
-
-  const turtleSimPositionTopic = new ROSLIB.Topic({
-    ros: ros,
-    name: "/turtle1/pose",
-    serviceType: "turtlesim/msg/Pose",
-  });
-
-  function isDifferent(data) {
-    if (
-      turtleSimPositionCopy.angular_velocity !== data.angular_velocity ||
-      turtleSimPositionCopy.linear_velocity !== data.linear_velocity ||
-      turtleSimPositionCopy.theta !== data.theta ||
-      turtleSimPositionCopy.x !== data.x ||
-      turtleSimPositionCopy.y !== data.y
-    ) {
-      setTurtleSimPosition(data);
-      return true;
-    }
-    return false;
-  }
+  const names = [
+    {
+      leftName: "Esquerda",
+      rightName: "Direita",
+    },
+    {
+      leftName: "Ré",
+      rightName: "A frente",
+    },
+  ];
 
   useEffect(() => {
-    turtleSimPositionTopic.subscribe((data) => {
-      if (isDifferent(data)) {
-        turtleSimPositionCopy = data;
-        console.log("Updating");
-      }
+    const imageTopic = new ROSLIB.Topic({
+      ros: ros,
+      name: "/camera1/image_raw",
+      messageType: "sensor_msgs/msg/Image",
+    });
+
+    imageTopic.subscribe((msg) => {
+      console.log("\n\n\n\n\n\n====================");
+      imageTopic.unsubscribe();
+
+      // lkadjsçflkjasdçlkf
+
+      const binaryData = Buffer.from(msg.data, "base64");
+      const base64Image =
+        "data:image/jpeg;base64," + binaryData.toString("base64");
+      setImageData(base64Image);
     });
   }, []);
 
-  function getTurtleData() {
-    turtleSimPositionTopic.subscribe((data) => {
-      if (isDifferent(data)) {
-        setTurtleSimPosition(data);
-        console.log("Updating");
-      }
+  /* Ros */
+  const ros = getRos();
+
+  const topic = new ROSLIB.Topic({
+    ros: ros,
+    name: "/cmd_vel",
+    messageType: "geometry_msgs/msg/Twist",
+  });
+  /* Ros */
+
+  function turn(value) {
+    const msg = new ROSLIB.Message({
+      linear: {
+        x: controlData.linear.x,
+        y: controlData.linear.y,
+        z: controlData.linear.z,
+      },
+      angular: {
+        x: controlData.angular.x,
+        y: controlData.angular.y,
+        z: value,
+      },
     });
-    turtleSimPositionTopic.unsubscribe();
+    setControlData((old) => {
+      old.angular.z = value;
+      return old;
+    });
+
+    topic.publish(msg);
   }
 
-  function startAction(callBack) {
-    console.log("Start");
-    setIntervalState(setInterval(callBack, 300));
+  function acelerate(value) {
+    const msg = new ROSLIB.Message({
+      linear: {
+        x: value,
+        y: controlData.linear.y,
+        z: controlData.linear.z,
+      },
+      angular: {
+        x: controlData.angular.x,
+        y: controlData.angular.y,
+        z: controlData.angular.z,
+      },
+    });
+    setControlData((old) => {
+      old.linear.x = value;
+      return old;
+    });
+
+    topic.publish(msg);
   }
 
-  function stopAction() {
-    console.log("Para para para para para");
-    clearInterval(intervalState);
+  function handleAcelerate(value) {
+    const normalizedValue = value / 10;
+    acelerate(normalizedValue);
   }
 
-  function turnLeft() {
-    console.log("turnLeft");
-  }
-
-  function turnRight() {
-    console.log("turnRight");
-  }
-
-  function acelerate() {
-    console.log("acelerate");
-  }
-
-  function brake() {
-    console.log("brake");
+  function handleTurn(value) {
+    const normalizedValue = value / 10;
+    if (normalizedValue === 0) turn(normalizedValue);
+    else turn(normalizedValue * -1);
   }
 
   return (
@@ -88,49 +120,25 @@ export function Control() {
       <StatusBar hidden={true} />
 
       <View style={styles.controls}>
-        <View style={[styles.icons, { marginLeft: 20 }]}>
-          <ControlButton
-            startAction={() => startAction(turnLeft)}
-            stopAction={stopAction}
-            icon={<Ionicons name="caret-back" size={60} />}
-          />
-          <ControlButton
-            startAction={() => startAction(turnRight)}
-            stopAction={stopAction}
-            icon={<Ionicons name="caret-forward" size={60} />}
-          />
-        </View>
-        <View style={[styles.icons, { marginRight: 20 }]}>
-          <ControlButton
-            startAction={() => startAction(brake)}
-            stopAction={stopAction}
-            icon={<Ionicons name="caret-down" size={60} />}
-          />
-          <ControlButton
-            startAction={() => startAction(acelerate)}
-            stopAction={stopAction}
-            icon={<Ionicons name="caret-up" size={60} />}
-          />
-        </View>
+        <SliderControl names={names[0]} callBack={handleTurn} />
+        <SliderControl names={names[1]} callBack={handleAcelerate} />
       </View>
 
       <View style={styles.cam}>
-        <Text style={styles.text}>Posicao da tartaruga</Text>
-        <Text style={styles.text}>
-          angular_velocity: {turtleSimPosition.angular_velocity}
-        </Text>
-        <Text style={styles.text}>
-          linear_velocity: {turtleSimPosition.linear_velocity}
-        </Text>
-        <Text style={styles.text}>theta: {turtleSimPosition.theta}</Text>
-        <Text style={styles.text}>x: {turtleSimPosition.x}</Text>
-        <Text style={styles.text}>y: {turtleSimPosition.y}</Text>
+        {imageData ? (
+          <Image style={{ width: 800, height: 800 }} source={imageData} />
+        ) : (
+          <Text>Nada ainda</Text>
+        )}
       </View>
     </View>
   );
 }
 
 /*
+
+remover: Buffer, 
+
 function listen() {
     if (!ros.isConnected) console.log("Desconectado");
     
@@ -147,14 +155,15 @@ const styles = StyleSheet.create({
     flex: 2,
     display: "flex",
     flexDirection: "row",
-    backgroundColor: "blue",
     justifyContent: "space-between",
     alignItems: "center",
   },
   cam: {
     flex: 8,
-    backgroundColor: "green",
     padding: 24,
+    borderColor: "black",
+    borderWidth: 2,
+    margin: 10,
   },
   icons: {
     display: "flex",
