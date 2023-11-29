@@ -1,10 +1,8 @@
 import { View, StyleSheet, StatusBar, Image, Text } from "react-native";
 import ROSLIB from "roslib";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
-import { Buffer } from "buffer";
-import Pedal from "../assets/pedal.png";
 
 export function Control() {
   const [controlData, setControlData] = useState({
@@ -32,31 +30,63 @@ export function Control() {
     },
   ];
 
+  /* Ros */
+  const ros = useRef(getRos());
+
+  const imageTopic = new ROSLIB.Topic({
+    ros: ros.current,
+    name: "/camera1/image_raw",
+    messageType: "sensor_msgs/msg/Image",
+  });
+
   useEffect(() => {
-    const imageTopic = new ROSLIB.Topic({
-      ros: ros,
-      name: "/camera1/image_raw",
-      messageType: "sensor_msgs/msg/Image",
-    });
-
     imageTopic.subscribe((msg) => {
-      console.log("\n\n\n\n\n\n====================");
-      imageTopic.unsubscribe();
+      console.log("====================");
 
-      // lkadjsçflkjasdçlkf
-
-      const binaryData = Buffer.from(msg.data, "base64");
-      const base64Image =
-        "data:image/jpeg;base64," + binaryData.toString("base64");
+      // const base64Image = `data:image/jpeg;base64,${msg.data}`;
+      const base64Image = convertToBase64(msg.data, 800, 800);
       setImageData(base64Image);
+      console.log("Passei");
+      imageTopic.unsubscribe();
     });
   }, []);
 
-  /* Ros */
-  const ros = getRos();
+  const convertToBase64 = (rawData, width, height) => {
+    const bytesPerPixel = 3; // Assuming RGB format (3 color channels)
+    const bitsPerChannel = 5; // Bit depth per channel
+
+    // Calculate the size of the buffer based on image dimensions and bit depth
+    const bufferSize = width * height * bytesPerPixel;
+
+    const buffer = new Uint8Array(bufferSize);
+
+    // Convert raw data to the appropriate format
+    for (let i = 0; i < bufferSize; i += bytesPerPixel) {
+      // Extract RGB values from raw data (adjust this based on your actual data format)
+      const r = (rawData[i] & 0b11111) << (bitsPerChannel * 2);
+      const g =
+        ((rawData[i + 1] & 0b11111) << bitsPerChannel) |
+        ((rawData[i] >> (bitsPerChannel * 3)) & 0b11111);
+      const b = (rawData[i + 2] & 0b11111) << bitsPerChannel;
+
+      // Pack RGB values into a 24-bit pixel (adjust this based on your actual data format)
+      const pixelValue = (r << 16) | (g << 8) | b;
+
+      // Store the pixel value in the buffer
+      buffer[i / bytesPerPixel] = (pixelValue >> 16) & 0xff; // Red
+      buffer[i / bytesPerPixel + 1] = (pixelValue >> 8) & 0xff; // Green
+      buffer[i / bytesPerPixel + 2] = pixelValue & 0xff; // Blue
+    }
+
+    // Convert the buffer to a base64-encoded string
+    const base64String = buffer.toString("base64");
+
+    return base64String;
+  };
+  ("");
 
   const topic = new ROSLIB.Topic({
-    ros: ros,
+    ros: ros.current,
     name: "/cmd_vel",
     messageType: "geometry_msgs/msg/Twist",
   });
@@ -105,14 +135,25 @@ export function Control() {
   }
 
   function handleAcelerate(value) {
-    const normalizedValue = value / 10;
+    let normalizedValue = value / 10;
+    if (normalizedValue === 0.1 || normalizedValue === -0.1)
+      normalizedValue = 0;
+
     acelerate(normalizedValue);
   }
 
   function handleTurn(value) {
-    const normalizedValue = value / 10;
+    let normalizedValue = value / 10;
+
+    if (normalizedValue === 0.1 || normalizedValue === -0.1)
+      normalizedValue = 0;
+    else {
+      if (normalizedValue > 0) normalizedValue -= 0.1;
+      else if (normalizedValue < 0) normalizedValue += 0.1;
+    }
     if (normalizedValue === 0) turn(normalizedValue);
     else turn(normalizedValue * -1);
+    value = 0;
   }
 
   return (
@@ -126,30 +167,28 @@ export function Control() {
 
       <View style={styles.cam}>
         {imageData ? (
-          <Image style={{ width: 800, height: 800 }} source={imageData} />
+          <Image
+            style={{
+              width: 800,
+              height: 800,
+            }}
+            source={{ uri: imageData }}
+          />
         ) : (
-          <Text>Nada ainda</Text>
+          <View>
+            <Text>Carregando...</Text>
+          </View>
         )}
       </View>
     </View>
   );
 }
 
-/*
-
-remover: Buffer, 
-
-function listen() {
-    if (!ros.isConnected) console.log("Desconectado");
-    
-  }
-
-*/
-
 const styles = StyleSheet.create({
   main: {
     flex: 1,
     flexDirection: "column-reverse",
+    padding: 10,
   },
   controls: {
     flex: 2,

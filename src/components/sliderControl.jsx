@@ -1,10 +1,15 @@
 import { View, StyleSheet, Text } from "react-native";
 import Slider from "@react-native-community/slider";
+import { useState } from "react";
 
 export function SliderControl(props) {
+  function returnToZero() {}
+
   return (
     <View style={styles.slider}>
       <View style={styles.center}>
+        <Text style={styles.centerCarret}>|</Text>
+        <Text style={styles.centerCarret}>0</Text>
         <Text style={styles.centerCarret}>|</Text>
       </View>
       <Slider
@@ -19,6 +24,7 @@ export function SliderControl(props) {
         minimumTrackTintColor="#0000ff"
         maximumTrackTintColor="#000000"
         thumbTintColor="#ff0000"
+        onSlidingComplete={returnToZero}
       />
       <View style={styles.instructions}>
         <Text>{props.names.leftName}</Text>
@@ -31,12 +37,14 @@ export function SliderControl(props) {
 const styles = StyleSheet.create({
   slider: {
     display: "flex",
+    // alignItems: "center",
   },
   center: {
     display: "flex",
-    width: 270,
-    marginLeft: 15,
-    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignSelf: "center",
+    width: 30,
   },
   centerCarret: { color: "black", fontWeight: "bold" },
 

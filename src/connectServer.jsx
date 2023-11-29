@@ -1,38 +1,36 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, StyleSheet, Button } from "react-native";
 import ROSLIB from "roslib";
 import { setRos } from "./rosObject";
-import { getRos } from "./rosObject";
 
 export function ConnectServer({ navigation }) {
   const [status, setStatus] = useState("Disconected");
 
-  const ros = new ROSLIB.Ros({ encoding: "ascii" });
+  const ros = useRef(new ROSLIB.Ros({ encoding: "ascii" }));
 
   function connect() {
     // ros.connect("ws://192.168.2.10:8002/ros_tornado_bridge/v1"); // tornado
-    ros.connect("ws://192.168.2.7:9090"); // rosbridge, se der erro verifique seu IP
-    ros.on("error", function (error) {
+    ros.current.connect("ws://192.168.2.3:9090"); // rosbridge, se der erro verifique seu IP
+    ros.current.on("error", function (error) {
       console.log("Error:");
       setStatus("Error");
       console.log(error);
     });
 
-    ros.on("connection", function () {
+    ros.current.on("connection", function () {
       console.log("Connected!");
       setStatus("Connected");
-      setRos(ros);
+      setRos(ros.current);
     });
 
-    ros.on("close", function () {
+    ros.current.on("close", function () {
       console.log("Connection closed");
       setStatus("Connection closed");
     });
   }
 
   function disconnect() {
-    const rosref = getRos();
-    rosref.close();
+    ros.current.close();
   }
 
   return (
