@@ -5,7 +5,7 @@ import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
 
 export function Control() {
-  const [controlData, setControlData] = useState({
+  const controlData = useRef({
     linear: {
       x: 0.0,
       y: 0.0,
@@ -40,15 +40,14 @@ export function Control() {
   });
 
   useEffect(() => {
-    imageTopic.subscribe((msg) => {
-      console.log("====================");
-
-      // const base64Image = `data:image/jpeg;base64,${msg.data}`;
-      const base64Image = convertToBase64(msg.data, 800, 800);
-      setImageData(base64Image);
-      console.log("Passei");
-      imageTopic.unsubscribe();
-    });
+    // imageTopic.subscribe((msg) => {
+    //   console.log("====================");
+    //   // const base64Image = `data:image/jpeg;base64,${msg.data}`;
+    //   const base64Image = convertToBase64(msg.data, 800, 800);
+    //   setImageData(base64Image);
+    //   console.log("Passei");
+    //   imageTopic.unsubscribe();
+    // });
   }, []);
 
   const convertToBase64 = (rawData, width, height) => {
@@ -95,21 +94,17 @@ export function Control() {
   function turn(value) {
     const msg = new ROSLIB.Message({
       linear: {
-        x: controlData.linear.x,
-        y: controlData.linear.y,
-        z: controlData.linear.z,
+        x: controlData.current.linear.x,
+        y: controlData.current.linear.y,
+        z: controlData.current.linear.z,
       },
       angular: {
-        x: controlData.angular.x,
-        y: controlData.angular.y,
+        x: controlData.current.angular.x,
+        y: controlData.current.angular.y,
         z: value,
       },
     });
-    setControlData((old) => {
-      old.angular.z = value;
-      return old;
-    });
-
+    controlData.current.angular.z = value;
     topic.publish(msg);
   }
 
@@ -117,20 +112,16 @@ export function Control() {
     const msg = new ROSLIB.Message({
       linear: {
         x: value,
-        y: controlData.linear.y,
-        z: controlData.linear.z,
+        y: controlData.current.linear.y,
+        z: controlData.current.linear.z,
       },
       angular: {
-        x: controlData.angular.x,
-        y: controlData.angular.y,
-        z: controlData.angular.z,
+        x: controlData.current.angular.x,
+        y: controlData.current.angular.y,
+        z: controlData.current.angular.z,
       },
     });
-    setControlData((old) => {
-      old.linear.x = value;
-      return old;
-    });
-
+    controlData.current.linear.x = value;
     topic.publish(msg);
   }
 
