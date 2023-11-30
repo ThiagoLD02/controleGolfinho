@@ -1,6 +1,13 @@
-import { View, StyleSheet, StatusBar, Image, Text } from "react-native";
+import {
+  View,
+  StyleSheet,
+  StatusBar,
+  Image,
+  Text,
+  Vibration,
+} from "react-native";
 import ROSLIB from "roslib";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
 
@@ -17,7 +24,7 @@ export function Control() {
       z: 0.0,
     },
   });
-  const [imageData, setImageData] = useState();
+  const lastValue = useRef({ linear: 0, angular: 0 });
 
   const names = [
     {
@@ -40,49 +47,11 @@ export function Control() {
   });
 
   useEffect(() => {
-    // imageTopic.subscribe((msg) => {
-    //   console.log("====================");
-    //   // const base64Image = `data:image/jpeg;base64,${msg.data}`;
-    //   const base64Image = convertToBase64(msg.data, 800, 800);
-    //   setImageData(base64Image);
-    //   console.log("Passei");
-    //   imageTopic.unsubscribe();
-    // });
+    imageTopic.subscribe((msg) => {
+      const rawImg = msg.data;
+      imageTopic.unsubscribe();
+    });
   }, []);
-
-  const convertToBase64 = (rawData, width, height) => {
-    const bytesPerPixel = 3; // Assuming RGB format (3 color channels)
-    const bitsPerChannel = 5; // Bit depth per channel
-
-    // Calculate the size of the buffer based on image dimensions and bit depth
-    const bufferSize = width * height * bytesPerPixel;
-
-    const buffer = new Uint8Array(bufferSize);
-
-    // Convert raw data to the appropriate format
-    for (let i = 0; i < bufferSize; i += bytesPerPixel) {
-      // Extract RGB values from raw data (adjust this based on your actual data format)
-      const r = (rawData[i] & 0b11111) << (bitsPerChannel * 2);
-      const g =
-        ((rawData[i + 1] & 0b11111) << bitsPerChannel) |
-        ((rawData[i] >> (bitsPerChannel * 3)) & 0b11111);
-      const b = (rawData[i + 2] & 0b11111) << bitsPerChannel;
-
-      // Pack RGB values into a 24-bit pixel (adjust this based on your actual data format)
-      const pixelValue = (r << 16) | (g << 8) | b;
-
-      // Store the pixel value in the buffer
-      buffer[i / bytesPerPixel] = (pixelValue >> 16) & 0xff; // Red
-      buffer[i / bytesPerPixel + 1] = (pixelValue >> 8) & 0xff; // Green
-      buffer[i / bytesPerPixel + 2] = pixelValue & 0xff; // Blue
-    }
-
-    // Convert the buffer to a base64-encoded string
-    const base64String = buffer.toString("base64");
-
-    return base64String;
-  };
-  ("");
 
   const topic = new ROSLIB.Topic({
     ros: ros.current,
@@ -122,29 +91,40 @@ export function Control() {
       },
     });
     controlData.current.linear.x = value;
+    // if (value < 0)
+    //   controlData.current.angular.z = -controlData.current.angular.z;
     topic.publish(msg);
   }
 
   function handleAcelerate(value) {
     let normalizedValue = value / 10;
-    if (normalizedValue === 0.1 || normalizedValue === -0.1)
-      normalizedValue = 0;
 
+    if (normalizedValue === 0.1 || normalizedValue === -0.1) {
+      normalizedValue = 0;
+      if (lastValue.current.linear > 0.1 || lastValue.current.linear < -0.1)
+        Vibration.vibrate(20);
+    }
+    if (normalizedValue === 1 || normalizedValue === -1) {
+      Vibration.vibrate(50);
+    }
     acelerate(normalizedValue);
+    lastValue.current.linear = normalizedValue;
   }
 
   function handleTurn(value) {
     let normalizedValue = value / 10;
 
-    if (normalizedValue === 0.1 || normalizedValue === -0.1)
+    if (normalizedValue === 0.1 || normalizedValue === -0.1) {
       normalizedValue = 0;
-    else {
-      if (normalizedValue > 0) normalizedValue -= 0.1;
-      else if (normalizedValue < 0) normalizedValue += 0.1;
+      if (lastValue.current.angular > 0.1 || lastValue.current.angular < -0.1)
+        Vibration.vibrate(20);
+    }
+    if (normalizedValue === 1 || normalizedValue === -1) {
+      Vibration.vibrate(50);
     }
     if (normalizedValue === 0) turn(normalizedValue);
     else turn(normalizedValue * -1);
-    value = 0;
+    lastValue.current.angular = normalizedValue;
   }
 
   return (
@@ -157,19 +137,7 @@ export function Control() {
       </View>
 
       <View style={styles.cam}>
-        {imageData ? (
-          <Image
-            style={{
-              width: 800,
-              height: 800,
-            }}
-            source={{ uri: imageData }}
-          />
-        ) : (
-          <View>
-            <Text>Carregando...</Text>
-          </View>
-        )}
+        <></>
       </View>
     </View>
   );
@@ -182,18 +150,19 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   controls: {
-    flex: 2,
+    flex: 1,
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   cam: {
-    flex: 8,
-    padding: 24,
+    flex: 2,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
     borderColor: "black",
-    borderWidth: 2,
-    margin: 10,
+    // borderWidth: 2,
   },
   icons: {
     display: "flex",

@@ -1,6 +1,5 @@
 import { View, StyleSheet, Text } from "react-native";
 import Slider from "@react-native-community/slider";
-import { useState } from "react";
 
 export function SliderControl(props) {
   function returnToZero() {}
