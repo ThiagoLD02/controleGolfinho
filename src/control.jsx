@@ -2,15 +2,14 @@ import {
   View,
   StyleSheet,
   StatusBar,
-  Image,
-  Text,
   Vibration,
+  Image,
+  ImageEditor,
 } from "react-native";
 import ROSLIB from "roslib";
 import { useEffect, useRef } from "react";
 import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
-
 export function Control() {
   const controlData = useRef({
     linear: {
@@ -40,24 +39,31 @@ export function Control() {
   /* Ros */
   const ros = useRef(getRos());
 
-  const imageTopic = new ROSLIB.Topic({
+  const cmdVel = new ROSLIB.Topic({
+    ros: ros.current,
+    name: "/cmd_vel",
+    messageType: "geometry_msgs/msg/Twist",
+  });
+
+  const imgTopic = new ROSLIB.Topic({
     ros: ros.current,
     name: "/camera1/image_raw",
     messageType: "sensor_msgs/msg/Image",
   });
 
   useEffect(() => {
-    imageTopic.subscribe((msg) => {
-      const rawImg = msg.data;
-      imageTopic.unsubscribe();
+    imgTopic.subscribe((res) => {
+      console.log("subscribed");
+      // stack(res);
+      imgTopic.unsubscribe();
     });
   }, []);
 
-  const topic = new ROSLIB.Topic({
-    ros: ros.current,
-    name: "/cmd_vel",
-    messageType: "geometry_msgs/msg/Twist",
-  });
+  // const odometer = new ROSLIB.Topic({
+  //   ros: ros.current,
+  //   name: "/odom",
+  //   messageType: "nav_msgs/msg/Odometry",
+  // });
   /* Ros */
 
   function turn(value) {
@@ -74,7 +80,7 @@ export function Control() {
       },
     });
     controlData.current.angular.z = value;
-    topic.publish(msg);
+    cmdVel.publish(msg);
   }
 
   function acelerate(value) {
@@ -93,7 +99,7 @@ export function Control() {
     controlData.current.linear.x = value;
     // if (value < 0)
     //   controlData.current.angular.z = -controlData.current.angular.z;
-    topic.publish(msg);
+    cmdVel.publish(msg);
   }
 
   function handleAcelerate(value) {
@@ -127,6 +133,43 @@ export function Control() {
     lastValue.current.angular = normalizedValue;
   }
 
+  function stack(res) {
+    const data = res.data;
+    const width = 800;
+    const height = 800;
+
+    const buffer = new Uint8ClampedArray(width * height * 4);
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const buffPos = (y * width + x) * 4;
+
+        const a = data.charCodeAt(buffPos + 3);
+        const r = data.charCodeAt(buffPos + 0);
+        const g = data.charCodeAt(buffPos + 1);
+        const b = data.charCodeAt(buffPos + 2);
+
+        buffer[buffPos + 0] = r;
+        buffer[buffPos + 1] = g;
+        buffer[buffPos + 2] = b;
+        buffer[buffPos + 3] = a;
+      }
+    }
+
+    const imageData = { width, height, data: buffer };
+
+    ImageEditor.cropImage(
+      "data:image/png;base64," + Buffer.from(imageData).toString("base64"), // assuming the data is in PNG format
+      { offset: { x: 0, y: 0 }, size: { width, height } },
+      (croppedImageURI) => {
+        // Handle the cropped image URI
+      },
+      (error) => {
+        console.error("Error cropping image:");
+      }
+    );
+  }
+
   return (
     <View style={styles.main}>
       <StatusBar hidden={true} />
@@ -137,7 +180,16 @@ export function Control() {
       </View>
 
       <View style={styles.cam}>
-        <></>
+        {false ? (
+          <></>
+        ) : (
+          <Image
+            source={{
+              uri: "https://img.freepik.com/fotos-gratis/uma-pintura-de-um-lago-de-montanha-com-uma-montanha-ao-fundo_188544-9126.jpg",
+            }}
+            style={{ width: 700, height: 250 }} // Adjust the dimensions as needed
+          />
+        )}
       </View>
     </View>
   );
@@ -157,7 +209,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cam: {
-    flex: 2,
+    flex: 4,
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
