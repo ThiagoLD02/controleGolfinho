@@ -4,13 +4,22 @@ import {
   StatusBar,
   Vibration,
   Image,
-  ImageEditor,
+  Text,
+  SafeAreaView,
 } from "react-native";
 import ROSLIB from "roslib";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
+import Canvas, { ImageData } from "react-native-canvas";
+import { Buffer } from "buffer";
+
 export function Control() {
+  const number = useRef(1);
+  const streamUrl = useRef(null);
+  /* Ros */
+  const ros = useRef(getRos());
+
   const controlData = useRef({
     linear: {
       x: 0.0,
@@ -23,6 +32,8 @@ export function Control() {
       z: 0.0,
     },
   });
+  const canvasRef = useRef(null);
+
   const lastValue = useRef({ linear: 0, angular: 0 });
 
   const names = [
@@ -36,8 +47,7 @@ export function Control() {
     },
   ];
 
-  /* Ros */
-  const ros = useRef(getRos());
+  const [imgUri, setImgUri] = useState("");
 
   const cmdVel = new ROSLIB.Topic({
     ros: ros.current,
@@ -53,8 +63,38 @@ export function Control() {
 
   useEffect(() => {
     imgTopic.subscribe((res) => {
-      console.log("subscribed");
-      // stack(res);
+      const canvas = canvasRef.current;
+      // const canvas = new Canvas();
+      const rawImg = res.data;
+
+      if (canvas) {
+        console.log("entreii");
+        canvas.width = 800;
+        canvas.height = 800;
+
+        const ctx = canvas.getContext("2d");
+        ctx.getImageData(0, 0, 800, 800).then((imgData) => {
+          console.log("oi");
+          // let data = new Array(800 * 800 * 4).fill(0);
+          const data = Object.values(imgData.data);
+          console.log("data", data.length);
+          const inData = Buffer.from(rawImg, "base64").toString("base64");
+          let j = 0;
+          let i = 4; // j data in , i data out
+          while (j < data.length - 4) {
+            // const w1 = inData.charCodeAt(j++); // read 3 16 bit words represent 1 pixel
+            // const w2 = inData.charCodeAt(j++);
+            // const w3 = inData.charCodeAt(j++);
+            data[i++] = 255; // red
+            data[i++] = 0; // green
+            data[i++] = 0; // blue
+            data[i++] = 255; // alpha
+          }
+          const tome = new ImageData(canvas, data, 800, 800);
+          ctx.putImageData(tome, 0, 0);
+          console.log("cabou");
+        });
+      }
       imgTopic.unsubscribe();
     });
   }, []);
@@ -133,8 +173,10 @@ export function Control() {
     lastValue.current.angular = normalizedValue;
   }
 
-  function stack(res) {
+  async function renderCanvas(res) {
+    console.log("Entrei");
     const data = res.data;
+
     const width = 800;
     const height = 800;
 
@@ -155,19 +197,27 @@ export function Control() {
         buffer[buffPos + 3] = a;
       }
     }
+    const canvas = new Canvas();
+    const ctx = canvas.getContext("2d");
+    canvas.height = 800;
+    canvas.width = 800;
 
-    const imageData = { width, height, data: buffer };
+    const idata = new ImageData(canvas, buffer, 800, 800);
 
-    ImageEditor.cropImage(
-      "data:image/png;base64," + Buffer.from(imageData).toString("base64"), // assuming the data is in PNG format
-      { offset: { x: 0, y: 0 }, size: { width, height } },
-      (croppedImageURI) => {
-        // Handle the cropped image URI
-      },
-      (error) => {
-        console.error("Error cropping image:");
-      }
-    );
+    ctx.createImageData(800, 800, idata);
+    ctx.putImageData(idata, 0, 0);
+    const uri = await canvas.toDataURL();
+    imgTopic.unsubscribe();
+
+    // idata.data.set(buffer);
+    // ctx.putImageData(idata, 0, 0);
+    // const dataUri = await canvas.toDataURL();
+    // console.log("dataUri", dataUri);
+    // setImgUri(dataUri);
+
+    // ctx.putImageData(idata, 0, 0);
+    // const dataUri = canvasRef.current.toDataURL();
+    // console.log("Fim ", dataUri);
   }
 
   return (
@@ -180,20 +230,13 @@ export function Control() {
       </View>
 
       <View style={styles.cam}>
-        {false ? (
-          <></>
-        ) : (
-          <Image
-            source={{
-              uri: "https://img.freepik.com/fotos-gratis/uma-pintura-de-um-lago-de-montanha-com-uma-montanha-ao-fundo_188544-9126.jpg",
-            }}
-            style={{ width: 700, height: 250 }} // Adjust the dimensions as needed
-          />
-        )}
+        <Canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
       </View>
     </View>
   );
 }
+
+// no Fluter tem um elemento de layout pra deixar como background ou foreground chamado Stacked
 
 const styles = StyleSheet.create({
   main: {
@@ -214,7 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderColor: "black",
-    // borderWidth: 2,
+    borderWidth: 2,
   },
   icons: {
     display: "flex",
