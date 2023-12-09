@@ -15,8 +15,7 @@ import Canvas, { ImageData } from "react-native-canvas";
 import { Buffer } from "buffer";
 
 export function Control() {
-  const number = useRef(1);
-  const streamUrl = useRef(null);
+  console.log("Reloaded");
   /* Ros */
   const ros = useRef(getRos());
 
@@ -47,8 +46,6 @@ export function Control() {
     },
   ];
 
-  const [imgUri, setImgUri] = useState("");
-
   const cmdVel = new ROSLIB.Topic({
     ros: ros.current,
     name: "/cmd_vel",
@@ -61,50 +58,53 @@ export function Control() {
     messageType: "sensor_msgs/msg/Image",
   });
 
-  useEffect(() => {
+  function getImage(rawImg) {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      // console.log("entreii");
+      canvas.width = 800;
+      canvas.height = 800;
+
+      const ctx = canvas.getContext("2d");
+
+      // ctx.getImageData(0, 0, 800, 800).then((imgData) => {
+      // console.log("oi");
+      let data = new Array(800 * 800 * 4).fill(0);
+      // const data = Object.values(imgData.data);
+      // console.log("data", data.length);
+      const inData = Buffer.from(rawImg, "base64").toString("ascii");
+      // console.log(inData.length); => 1.920.000
+      let j = 0;
+      let i = 0; // j data in , i data out
+      while (i < inData.length) {
+        const r = inData.charCodeAt(j++); // read 3 16 bit words represent 1 pixel
+        const g = inData.charCodeAt(j++);
+        const b = inData.charCodeAt(j++);
+        data[i++] = r; // red
+        data[i++] = g; // green
+        data[i++] = b; // blue
+        data[i++] = 255; // alpha
+      }
+
+      const imageData = new ImageData(canvas, data, 800, 800);
+      // ctx.createImageData(800, 800, tome);
+      ctx.putImageData(imageData, 0, 0);
+
+      // console.log("cabou");
+      // });
+    }
+
+    console.log("feshow");
+  }
+
+  setTimeout(() => {
     imgTopic.subscribe((res) => {
-      const canvas = canvasRef.current;
       // const canvas = new Canvas();
       const rawImg = res.data;
-
-      if (canvas) {
-        console.log("entreii");
-        canvas.width = 800;
-        canvas.height = 800;
-
-        const ctx = canvas.getContext("2d");
-        ctx.getImageData(0, 0, 800, 800).then((imgData) => {
-          console.log("oi");
-          // let data = new Array(800 * 800 * 4).fill(0);
-          const data = Object.values(imgData.data);
-          console.log("data", data.length);
-          const inData = Buffer.from(rawImg, "base64").toString("base64");
-          let j = 0;
-          let i = 4; // j data in , i data out
-          while (j < data.length - 4) {
-            // const w1 = inData.charCodeAt(j++); // read 3 16 bit words represent 1 pixel
-            // const w2 = inData.charCodeAt(j++);
-            // const w3 = inData.charCodeAt(j++);
-            data[i++] = 255; // red
-            data[i++] = 0; // green
-            data[i++] = 0; // blue
-            data[i++] = 255; // alpha
-          }
-          const tome = new ImageData(canvas, data, 800, 800);
-          ctx.putImageData(tome, 0, 0);
-          console.log("cabou");
-        });
-      }
+      getImage(rawImg);
       imgTopic.unsubscribe();
     });
-  }, []);
-
-  // const odometer = new ROSLIB.Topic({
-  //   ros: ros.current,
-  //   name: "/odom",
-  //   messageType: "nav_msgs/msg/Odometry",
-  // });
-  /* Ros */
+  }, 5000);
 
   function turn(value) {
     const msg = new ROSLIB.Message({
@@ -229,9 +229,9 @@ export function Control() {
         <SliderControl names={names[1]} callBack={handleAcelerate} />
       </View>
 
-      <View style={styles.cam}>
-        <Canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
-      </View>
+      <SafeAreaView style={styles.cam}>
+        <Canvas ref={canvasRef} style={styles.canvas} />
+      </SafeAreaView>
     </View>
   );
 }
@@ -253,11 +253,11 @@ const styles = StyleSheet.create({
   },
   cam: {
     flex: 4,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    borderColor: "black",
-    borderWidth: 2,
+    // display: "flex",
+    // justifyContent: "center",
+    // alignItems: "center",
+    // borderColor: "black",
+    // borderWidth: 2,
   },
   icons: {
     display: "flex",
@@ -266,5 +266,11 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 18,
+  },
+  canvas: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "pink",
+    display: "flex",
   },
 });
