@@ -8,11 +8,10 @@ import {
   SafeAreaView,
 } from "react-native";
 import ROSLIB from "roslib";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { getRos } from "./rosObject";
 import { SliderControl } from "./components/sliderControl";
-import Canvas, { ImageData } from "react-native-canvas";
-import { Buffer } from "buffer";
+import { CameraImg } from "./components/cameraImg";
 
 export function Control() {
   console.log("Reloaded");
@@ -31,7 +30,6 @@ export function Control() {
       z: 0.0,
     },
   });
-  const canvasRef = useRef(null);
 
   const lastValue = useRef({ linear: 0, angular: 0 });
 
@@ -52,59 +50,11 @@ export function Control() {
     messageType: "geometry_msgs/msg/Twist",
   });
 
-  const imgTopic = new ROSLIB.Topic({
-    ros: ros.current,
-    name: "/camera1/image_raw",
-    messageType: "sensor_msgs/msg/Image",
-  });
-
-  function getImage(rawImg) {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      // console.log("entreii");
-      canvas.width = 800;
-      canvas.height = 800;
-
-      const ctx = canvas.getContext("2d");
-
-      // ctx.getImageData(0, 0, 800, 800).then((imgData) => {
-      // console.log("oi");
-      let data = new Array(800 * 800 * 4).fill(0);
-      // const data = Object.values(imgData.data);
-      // console.log("data", data.length);
-      const inData = Buffer.from(rawImg, "base64").toString("ascii");
-      // console.log(inData.length); => 1.920.000
-      let j = 0;
-      let i = 0; // j data in , i data out
-      while (i < inData.length) {
-        const r = inData.charCodeAt(j++); // read 3 16 bit words represent 1 pixel
-        const g = inData.charCodeAt(j++);
-        const b = inData.charCodeAt(j++);
-        data[i++] = r; // red
-        data[i++] = g; // green
-        data[i++] = b; // blue
-        data[i++] = 255; // alpha
-      }
-
-      const imageData = new ImageData(canvas, data, 800, 800);
-      // ctx.createImageData(800, 800, tome);
-      ctx.putImageData(imageData, 0, 0);
-
-      // console.log("cabou");
-      // });
-    }
-
-    console.log("feshow");
-  }
-
-  setTimeout(() => {
-    imgTopic.subscribe((res) => {
-      // const canvas = new Canvas();
-      const rawImg = res.data;
-      getImage(rawImg);
-      imgTopic.unsubscribe();
-    });
-  }, 5000);
+  // setTimeout(() => {
+  //   console.log("calling");
+  //
+  //   console.log("called");
+  // }, 10);
 
   function turn(value) {
     const msg = new ROSLIB.Message({
@@ -173,53 +123,6 @@ export function Control() {
     lastValue.current.angular = normalizedValue;
   }
 
-  async function renderCanvas(res) {
-    console.log("Entrei");
-    const data = res.data;
-
-    const width = 800;
-    const height = 800;
-
-    const buffer = new Uint8ClampedArray(width * height * 4);
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const buffPos = (y * width + x) * 4;
-
-        const a = data.charCodeAt(buffPos + 3);
-        const r = data.charCodeAt(buffPos + 0);
-        const g = data.charCodeAt(buffPos + 1);
-        const b = data.charCodeAt(buffPos + 2);
-
-        buffer[buffPos + 0] = r;
-        buffer[buffPos + 1] = g;
-        buffer[buffPos + 2] = b;
-        buffer[buffPos + 3] = a;
-      }
-    }
-    const canvas = new Canvas();
-    const ctx = canvas.getContext("2d");
-    canvas.height = 800;
-    canvas.width = 800;
-
-    const idata = new ImageData(canvas, buffer, 800, 800);
-
-    ctx.createImageData(800, 800, idata);
-    ctx.putImageData(idata, 0, 0);
-    const uri = await canvas.toDataURL();
-    imgTopic.unsubscribe();
-
-    // idata.data.set(buffer);
-    // ctx.putImageData(idata, 0, 0);
-    // const dataUri = await canvas.toDataURL();
-    // console.log("dataUri", dataUri);
-    // setImgUri(dataUri);
-
-    // ctx.putImageData(idata, 0, 0);
-    // const dataUri = canvasRef.current.toDataURL();
-    // console.log("Fim ", dataUri);
-  }
-
   return (
     <View style={styles.main}>
       <StatusBar hidden={true} />
@@ -229,9 +132,9 @@ export function Control() {
         <SliderControl names={names[1]} callBack={handleAcelerate} />
       </View>
 
-      <SafeAreaView style={styles.cam}>
-        <Canvas ref={canvasRef} style={styles.canvas} />
-      </SafeAreaView>
+      <View style={styles.cam}>
+        <CameraImg />
+      </View>
     </View>
   );
 }
@@ -252,12 +155,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cam: {
+    display: "flex",
     flex: 4,
-    // display: "flex",
-    // justifyContent: "center",
-    // alignItems: "center",
-    // borderColor: "black",
-    // borderWidth: 2,
+    width: "100%",
+    height: "100%",
   },
   icons: {
     display: "flex",
@@ -268,9 +169,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   canvas: {
+    display: "flex",
     width: "100%",
     height: "100%",
-    backgroundColor: "pink",
-    display: "flex",
+  },
+  img: {
+    width: "100%",
+    height: "100%",
+    borderWidth: 2,
   },
 });
